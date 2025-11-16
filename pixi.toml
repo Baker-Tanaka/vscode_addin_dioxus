@@ -15,9 +15,7 @@ install-binstall = "cargo install cargo-binstall --version 1.16.0"
 install-dioxus = { cmd = "cargo binstall dioxus-cli --version 0.7.1 -y", depends-on = ["install-binstall"] }
 add-wasm-target = "rustup target add wasm32-unknown-unknown"
 setup = { depends-on = ["install-dioxus", "add-wasm-target"] }
-dev-dioxus = { cmd = "dx serve", cwd = "dioxus-app" }
 build-dioxus-only = { cmd = "dx build --release", cwd = "dioxus-app" }
 copy-dist = "mkdir -p dioxus-app/dist && cp -r dioxus-app/target/dx/hello-vscode-dioxus-app/release/web/public/* dioxus-app/dist/"
 build-dioxus = { depends-on = ["build-dioxus-only", "copy-dist"] }
-dev-vscode = "npm run watch"
-vscode-debug = "npm run compile"
+dioxus-watch = "while true; do pixi run build-dioxus; echo 'Dioxus rebuilt. Reload WebView to see changes.'; sleep 2; done"
