@@ -1,0 +1,20 @@
+# Node modules
+node_modules/
+out/
+dist/
+
+# Rust
+target/
+Cargo.lock
+dioxus-app/target/
+dioxus-app/dist/
+
+# VSCode
+.vscode-test/
+*.vsix
+
+# Pixi
+.pixi/
+
+# OS
+.DS_Store

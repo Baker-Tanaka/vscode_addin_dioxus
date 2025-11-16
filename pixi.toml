@@ -1,0 +1,23 @@
+[workspace]
+name = "hello-vscode-dioxus"
+version = "0.1.0"
+description = "VSCode extension with Dioxus WebAssembly UI"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
+
+[dependencies]
+rust = ">=1.85.0"
+rust-std-wasm32-unknown-unknown = "*"
+nodejs = "==22.11.0"
+
+[tasks]
+install-binstall = "cargo install cargo-binstall --version 1.16.0"
+install-dioxus = { cmd = "cargo binstall dioxus-cli --version 0.7.1 -y", depends-on = ["install-binstall"] }
+add-wasm-target = "rustup target add wasm32-unknown-unknown"
+setup = { depends-on = ["install-dioxus", "add-wasm-target"] }
+dev-dioxus = { cmd = "dx serve", cwd = "dioxus-app" }
+build-dioxus-only = { cmd = "dx build --release", cwd = "dioxus-app" }
+copy-dist = "mkdir -p dioxus-app/dist && cp -r dioxus-app/target/dx/hello-vscode-dioxus-app/release/web/public/* dioxus-app/dist/"
+build-dioxus = { depends-on = ["build-dioxus-only", "copy-dist"] }
+dev-vscode = "npm run watch"
+vscode-debug = "npm run compile"

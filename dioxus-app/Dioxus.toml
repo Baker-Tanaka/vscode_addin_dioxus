@@ -1,0 +1,16 @@
+[application]
+name = "hello-vscode-dioxus-app"
+
+[bundle]
+identifier = "com.hello-vscode-dioxus.app"
+
+[[platform.web]]
+title = "Hello Dioxus"
+base_path = "."
+
+[platform.web.watcher]
+watch_path = ["src"]
+
+[platform.web.resource]
+style = []
+script = []
