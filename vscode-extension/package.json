@@ -1,0 +1,35 @@
+{
+  "name": "dioxus-webview-extension",
+  "displayName": "Dioxus Webview",
+  "publisher": "your-name",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:extension.openDioxusWebview", "onCommand:extension.helloOpen"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "extension.openDioxusWebview",
+        "title": "Dioxus: Open Webview"
+      },
+      {
+        "command": "extension.helloOpen",
+        "title": "hello open"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p .",
+    "watch": "tsc -w",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "typescript": "^5.1.6",
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.70.0"
+  }
+}
