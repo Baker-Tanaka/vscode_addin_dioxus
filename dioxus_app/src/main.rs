@@ -1,6 +1,9 @@
 use dioxus::prelude::*;
 use std::collections::VecDeque;
 
+mod waveform_canvas;
+use waveform_canvas::WaveformCanvas;
+
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
@@ -75,11 +78,11 @@ fn Navbar() -> Element {
 #[component]
 fn Graph() -> Element {
     use gloo_timers::future::sleep;
-    use std::collections::VecDeque;
     use std::time::Duration;
 
     let mut data = use_signal(|| VecDeque::<(f64, f64)>::new());
     let mut time = use_signal(|| 0.0f64);
+    let mut frequency = use_signal(|| 2.0f64);
 
     // Generate sin wave data in a background task
     use_effect(move || {
@@ -90,7 +93,8 @@ fn Graph() -> Element {
                 let t = time() + 0.1;
                 time.set(t);
 
-                let y = (t * 2.0).sin();
+                let freq = frequency();
+                let y = (t * freq).sin();
 
                 let mut d = data.write();
                 d.push_back((t, y));
@@ -114,162 +118,53 @@ fn Graph() -> Element {
                         class: "text-center space-y-2",
                         h2 {
                             class: "text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent",
-                            "📊 Waveform Graph"
+                            "🌊 Waveform Graph"
                         }
                         p {
                             class: "text-gray-500 text-sm",
                             "Real-time sin wave with FIFO channel data"
                         }
                     }
-                    WaveformCanvas { data: data }
-                }
-            }
-        }
-    }
-}
 
-#[component]
-fn WaveformCanvas(data: Signal<VecDeque<(f64, f64)>>) -> Element {
-    use wasm_bindgen::JsCast;
+                    // Frequency control slider
+                    div {
+                        class: "space-y-2",
+                        label {
+                            class: "block text-sm font-medium text-gray-700",
+                            "周波数 (Frequency): {frequency():.1} Hz"
+                        }
+                        input {
+                            r#type: "range",
+                            min: "0.5",
+                            max: "10.0",
+                            step: "0.1",
+                            value: "{frequency()}",
+                            oninput: move |evt| {
+                                if let Ok(val) = evt.value().parse::<f64>() {
+                                    frequency.set(val);
+                                }
+                            },
+                            class: "w-full h-2 bg-gradient-to-r from-purple-200 to-blue-200 rounded-lg appearance-none cursor-pointer slider"
+                        }
+                        div {
+                            class: "flex justify-between text-xs text-gray-500",
+                            span { "0.5 Hz" }
+                            span { "10.0 Hz" }
+                        }
+                    }
 
-    let mut canvas_ref = use_signal(|| None::<web_sys::HtmlCanvasElement>);
-
-    // Render the canvas whenever data changes
-    use_effect(move || {
-        let data_vec = data.read();
-        if let Some(canvas) = canvas_ref() {
-            let context = canvas
-                .get_context("2d")
-                .unwrap()
-                .unwrap()
-                .dyn_into::<web_sys::CanvasRenderingContext2d>()
-                .unwrap();
-
-            let width = canvas.width() as f64;
-            let height = canvas.height() as f64;
-            
-            // Define margins for axis labels
-            let margin_left = 60.0;
-            let margin_right = 20.0;
-            let margin_top = 20.0;
-            let margin_bottom = 50.0;
-            
-            let plot_width = width - margin_left - margin_right;
-            let plot_height = height - margin_top - margin_bottom;
-
-            // Clear canvas
-            context.clear_rect(0.0, 0.0, width, height);
-            
-            // Draw plot area border
-            context.set_stroke_style_str("#d1d5db");
-            context.set_line_width(2.0);
-            context.stroke_rect(margin_left, margin_top, plot_width, plot_height);
-
-            // Draw grid inside plot area
-            context.set_stroke_style_str("#e5e7eb");
-            context.set_line_width(1.0);
-
-            // Horizontal grid lines
-            for i in 0..5 {
-                let y = margin_top + (i as f64 / 4.0) * plot_height;
-                context.begin_path();
-                context.move_to(margin_left, y);
-                context.line_to(margin_left + plot_width, y);
-                context.stroke();
-            }
-
-            // Vertical grid lines
-            for i in 0..10 {
-                let x = margin_left + (i as f64 / 9.0) * plot_width;
-                context.begin_path();
-                context.move_to(x, margin_top);
-                context.line_to(x, margin_top + plot_height);
-                context.stroke();
-            }
-
-            // Draw Y-axis labels (outside plot area, on the left)
-            context.set_fill_style_str("#374151");
-            context.set_font("12px sans-serif");
-            context.set_text_align("right");
-            context.set_text_baseline("middle");
-            
-            let y_labels = ["1.0", "0.5", "0.0", "-0.5", "-1.0"];
-            for (i, label) in y_labels.iter().enumerate() {
-                let y = margin_top + (i as f64 / 4.0) * plot_height;
-                context.fill_text(label, margin_left - 10.0, y).ok();
-            }
-
-            // Draw X-axis labels (outside plot area, below)
-            context.set_text_align("center");
-            context.set_text_baseline("top");
-            for i in 0..10 {
-                let x = margin_left + (i as f64 / 9.0) * plot_width;
-                if i % 2 == 0 {
-                    let time_label = format!("{:.1}", i as f64 * 1.0);
-                    context.fill_text(&time_label, x, margin_top + plot_height + 10.0).ok();
-                }
-            }
-
-            // Y-axis title (vertical text on the left)
-            context.save();
-            context.translate(15.0, height / 2.0).ok();
-            context.rotate(-std::f64::consts::PI / 2.0).ok();
-            context.set_font("14px sans-serif");
-            context.set_fill_style_str("#1f2937");
-            context.set_text_align("center");
-            context.fill_text("振幅 (Amplitude)", 0.0, 0.0).ok();
-            context.restore();
-
-            // X-axis title (horizontal text below)
-            context.set_font("14px sans-serif");
-            context.set_fill_style_str("#1f2937");
-            context.set_text_align("center");
-            context.set_text_baseline("top");
-            context.fill_text("時間 (秒)", margin_left + plot_width / 2.0, height - 15.0).ok();
-
-            // Draw waveform (inside plot area)
-            if data_vec.len() > 1 {
-                context.set_stroke_style_str("#8b5cf6");
-                context.set_line_width(2.0);
-                context.begin_path();
-
-                let min_t = data_vec.front().map(|(t, _)| *t).unwrap_or(0.0);
-                let max_t = data_vec.back().map(|(t, _)| *t).unwrap_or(1.0);
-                let range_t = max_t - min_t;
-
-                for (i, (t, y)) in data_vec.iter().enumerate() {
-                    let x = if range_t > 0.0 {
-                        margin_left + ((t - min_t) / range_t) * plot_width
-                    } else {
-                        margin_left + (i as f64 / data_vec.len() as f64) * plot_width
-                    };
-                    let canvas_y = margin_top + plot_height / 2.0 - (y * plot_height / 4.0);
-
-                    if i == 0 {
-                        context.move_to(x, canvas_y);
-                    } else {
-                        context.line_to(x, canvas_y);
+                    WaveformCanvas {
+                        data: data,
+                        width: 800,
+                        height: 400,
+                        color: "#8b5cf6".to_string(),
+                        x_label: "時間 (秒)".to_string(),
+                        y_label: "振幅 (Amplitude)".to_string(),
+                        y_min: -1.0,
+                        y_max: 1.0
                     }
                 }
-
-                context.stroke();
             }
-        }
-    });
-
-    rsx! {
-        canvas {
-            onmounted: move |event| {
-                if let Some(element) = event.data().downcast::<web_sys::Element>() {
-                    if let Ok(canvas) = element.clone().dyn_into::<web_sys::HtmlCanvasElement>() {
-                        canvas_ref.set(Some(canvas));
-                    }
-                }
-            },
-            width: "800",
-            height: "400",
-            class: "w-full border-2 border-gray-200 rounded-lg",
-            style: "max-width: 800px; max-height: 400px;"
         }
     }
 }
