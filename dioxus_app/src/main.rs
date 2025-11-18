@@ -11,7 +11,7 @@ enum Route {
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
-const VSCODE_BRIDGE_JS: &str = include_str!("../assets/vscode-bridge.js");
+// bridge JS is served from /assets and loaded via document::Script src
 
 fn main() {
     dioxus::launch(App);
@@ -23,7 +23,7 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
-        document::Script { "{VSCODE_BRIDGE_JS}" }
+        document::Script { src: "/assets/vscode-bridge.js" }
         Router::<Route> {}
     }
 }
@@ -41,7 +41,7 @@ fn Home() -> Element {
 fn Navbar() -> Element {
     rsx! {
         div {
-            class: "bg-gradient-to-r from-purple-600 to-blue-600 shadow-lg",
+            class: "fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-purple-600 to-blue-600 shadow-lg",
             div {
                 class: "container mx-auto px-4 py-4 flex items-center justify-between",
                 h1 {
@@ -58,6 +58,8 @@ fn Navbar() -> Element {
                 }
             }
         }
+        // leave space for the fixed navbar
+        div { class: "h-16" }
         Outlet::<Route> {}
     }
 }
@@ -66,9 +68,9 @@ fn Navbar() -> Element {
 fn Hello() -> Element {
     rsx! {
         div {
-            class: "min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center p-8",
+            class: "fixed inset-0 pt-16 bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center overflow-hidden",
             div {
-                class: "w-full max-w-md",
+                class: "w-full max-w-md px-8",
                 div {
                     class: "bg-white rounded-2xl shadow-2xl p-8 space-y-6 transform hover:scale-[1.02] transition-transform duration-300",
                     div {

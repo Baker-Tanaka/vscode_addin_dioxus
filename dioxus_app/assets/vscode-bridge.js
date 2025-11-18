@@ -1,45 +1,38 @@
-// vscode-bridge.js
-// Poll for the elements and attach event handler to the hello button.
+// vscode-bridge.js (compiled from vscode-bridge.ts)
+// Minimal runtime bridge that posts { type: 'hello', name } to the
+// extension via acquireVsCodeApi() when available, or to the parent
+// window when running inside an iframe.
 (function () {
-  // Cache vscode API if available (can only call acquireVsCodeApi once)
-  let vscodeApi = null;
+  var vscodeApi = null;
   try {
     if (typeof acquireVsCodeApi !== 'undefined') {
       vscodeApi = acquireVsCodeApi();
     }
-  } catch (e) {
-    // not available in iframe context
   }
-
+  catch (e) { }
   function sendHello(name) {
-    const msg = { type: 'hello', name };
+    var msg = { type: 'hello', name: name };
     if (vscodeApi) {
-      // running directly in a webview top-level document
       vscodeApi.postMessage(msg);
-    } else if (window.parent && window.parent !== window) {
-      // running inside an iframe; post to parent (webview wrapper should forward)
+    }
+    else if (window.parent && window.parent !== window) {
       window.parent.postMessage(msg, '*');
     }
   }
-
   function tryAttach() {
-    const input = document.getElementById('name-input');
-    const button = document.getElementById('hello-button');
-    if (input && button && !button._vscode_bridge_attached) {
+    var input = document.getElementById('name-input');
+    var button = document.getElementById('hello-button');
+    if (input && button && !(button._vscode_bridge_attached)) {
       button._vscode_bridge_attached = true;
       button.addEventListener('click', function () {
-        const name = (input.value || '').trim();
+        var name = (input.value || '').trim();
         sendHello(name);
       });
     }
   }
-
-  // wait for the dioxus DOM to render
-  const interval = setInterval(function () {
+  var interval = setInterval(function () {
     tryAttach();
   }, 200);
-
-  // stop polling after 10s
   setTimeout(function () {
     clearInterval(interval);
   }, 10000);

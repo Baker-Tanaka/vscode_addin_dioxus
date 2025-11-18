@@ -45,9 +45,9 @@ async function ensureDevServerRunning(port: number, context: vscode.ExtensionCon
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   const commands: Array<{ cmd: string; args: string[]; cwd?: string }> = workspaceRoot
     ? [
-        { cmd: 'pixi', args: ['run', 'dioxus-serve'], cwd: workspaceRoot },
-        { cmd: 'dx', args: ['serve', '--platform', 'web', '--port', String(port)], cwd: path.join(workspaceRoot, 'dioxus_app') }
-      ]
+      { cmd: 'pixi', args: ['run', 'dioxus-serve'], cwd: workspaceRoot },
+      { cmd: 'dx', args: ['serve', '--platform', 'web', '--port', String(port)], cwd: path.join(workspaceRoot, 'dioxus_app') }
+    ]
     : [{ cmd: 'dx', args: ['serve', '--platform', 'web', '--port', String(port)] }];
 
   for (const config of commands) {

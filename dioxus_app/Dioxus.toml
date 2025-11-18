@@ -12,10 +12,10 @@ title = "dioxus_app"
 style = []
 
 # Additional JavaScript files
-script = []
+script = ["/assets/vscode-bridge.js"]
 
 [web.resource.dev]
 
 # Javascript code file
 # serve: [dev-server] only
-script = []
+script = ["/assets/vscode-bridge.js"]
