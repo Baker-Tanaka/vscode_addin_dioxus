@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use std::collections::VecDeque;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
@@ -6,6 +7,8 @@ enum Route {
     #[layout(Navbar)]
     #[route("/")]
     Home {},
+    #[route("/graph")]
+    Graph {},
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
@@ -55,12 +58,165 @@ fn Navbar() -> Element {
                         class: "text-white hover:text-purple-200 transition-colors font-medium",
                         "Home"
                     }
+                    Link {
+                        to: Route::Graph {},
+                        class: "text-white hover:text-purple-200 transition-colors font-medium",
+                        "Graph"
+                    }
                 }
             }
         }
         // leave space for the fixed navbar
         div { class: "h-16" }
         Outlet::<Route> {}
+    }
+}
+
+#[component]
+fn Graph() -> Element {
+    use std::collections::VecDeque;
+    use gloo_timers::future::sleep;
+    use std::time::Duration;
+    
+    let mut data = use_signal(|| VecDeque::<(f64, f64)>::new());
+    let mut time = use_signal(|| 0.0f64);
+    
+    // Generate sin wave data in a background task
+    use_effect(move || {
+        spawn(async move {
+            loop {
+                sleep(Duration::from_millis(50)).await;
+                
+                let t = time() + 0.1;
+                time.set(t);
+                
+                let y = (t * 2.0).sin();
+                
+                let mut d = data.write();
+                d.push_back((t, y));
+                
+                // Keep only last 100 points (FIFO)
+                if d.len() > 100 {
+                    d.pop_front();
+                }
+            }
+        });
+    });
+    
+    rsx! {
+        div {
+            class: "fixed inset-0 pt-16 bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center overflow-hidden",
+            div {
+                class: "w-full max-w-4xl px-8",
+                div {
+                    class: "bg-white rounded-2xl shadow-2xl p-8 space-y-6",
+                    div {
+                        class: "text-center space-y-2",
+                        h2 {
+                            class: "text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent",
+                            "📊 Waveform Graph"
+                        }
+                        p {
+                            class: "text-gray-500 text-sm",
+                            "Real-time sin wave with FIFO channel data"
+                        }
+                    }
+                    WaveformCanvas { data: data }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn WaveformCanvas(data: Signal<VecDeque<(f64, f64)>>) -> Element {
+    use wasm_bindgen::JsCast;
+    
+    let mut canvas_ref = use_signal(|| None::<web_sys::HtmlCanvasElement>);
+    
+    // Render the canvas whenever data changes
+    use_effect(move || {
+        let data_vec = data.read();
+        if let Some(canvas) = canvas_ref() {
+            let context = canvas
+                .get_context("2d")
+                .unwrap()
+                .unwrap()
+                .dyn_into::<web_sys::CanvasRenderingContext2d>()
+                .unwrap();
+            
+            let width = canvas.width() as f64;
+            let height = canvas.height() as f64;
+            
+            // Clear canvas
+            context.clear_rect(0.0, 0.0, width, height);
+            
+            // Draw grid
+            context.set_stroke_style(&"#e5e7eb".into());
+            context.set_line_width(1.0);
+            
+            // Horizontal lines
+            for i in 0..5 {
+                let y = (i as f64 / 4.0) * height;
+                context.begin_path();
+                context.move_to(0.0, y);
+                context.line_to(width, y);
+                context.stroke();
+            }
+            
+            // Vertical lines
+            for i in 0..10 {
+                let x = (i as f64 / 9.0) * width;
+                context.begin_path();
+                context.move_to(x, 0.0);
+                context.line_to(x, height);
+                context.stroke();
+            }
+            
+            // Draw waveform
+            if data_vec.len() > 1 {
+                context.set_stroke_style(&"#8b5cf6".into());
+                context.set_line_width(2.0);
+                context.begin_path();
+                
+                let min_t = data_vec.front().map(|(t, _)| *t).unwrap_or(0.0);
+                let max_t = data_vec.back().map(|(t, _)| *t).unwrap_or(1.0);
+                let range_t = max_t - min_t;
+                
+                for (i, (t, y)) in data_vec.iter().enumerate() {
+                    let x = if range_t > 0.0 {
+                        ((t - min_t) / range_t) * width
+                    } else {
+                        (i as f64 / data_vec.len() as f64) * width
+                    };
+                    let canvas_y = height / 2.0 - (y * height / 4.0);
+                    
+                    if i == 0 {
+                        context.move_to(x, canvas_y);
+                    } else {
+                        context.line_to(x, canvas_y);
+                    }
+                }
+                
+                context.stroke();
+            }
+        }
+    });
+    
+    rsx! {
+        canvas {
+            onmounted: move |event| {
+                if let Some(element) = event.data().downcast::<web_sys::Element>() {
+                    if let Ok(canvas) = element.clone().dyn_into::<web_sys::HtmlCanvasElement>() {
+                        canvas_ref.set(Some(canvas));
+                    }
+                }
+            },
+            width: "800",
+            height: "400",
+            class: "w-full border-2 border-gray-200 rounded-lg",
+            style: "max-width: 800px; max-height: 400px;"
+        }
     }
 }
 
