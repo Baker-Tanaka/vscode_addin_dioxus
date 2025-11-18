@@ -80,6 +80,12 @@ fn Graph() -> Element {
     use gloo_timers::future::sleep;
     use std::time::Duration;
 
+    // Data acquisition constants
+    const UPDATE_INTERVAL_MS: u64 = 10; // 10ms = 100Hz sampling rate
+    const DISPLAY_TIME_WINDOW: f64 = 5.0; // Display last 5 seconds
+    const TIME_STEP: f64 = UPDATE_INTERVAL_MS as f64 / 1000.0; // Convert ms to seconds
+    const MAX_POINTS: usize = (DISPLAY_TIME_WINDOW / TIME_STEP) as usize; // 5s / 0.01s = 500 points
+
     let mut data = use_signal(|| VecDeque::<(f64, f64)>::new());
     let mut time = use_signal(|| 0.0f64);
     let mut frequency = use_signal(|| 2.0f64);
@@ -88,9 +94,9 @@ fn Graph() -> Element {
     use_effect(move || {
         spawn(async move {
             loop {
-                sleep(Duration::from_millis(50)).await;
+                sleep(Duration::from_millis(UPDATE_INTERVAL_MS)).await;
 
-                let t = time() + 0.1;
+                let t = time() + TIME_STEP;
                 time.set(t);
 
                 let freq = frequency();
@@ -99,8 +105,8 @@ fn Graph() -> Element {
                 let mut d = data.write();
                 d.push_back((t, y));
 
-                // Keep only last 100 points (FIFO)
-                if d.len() > 100 {
+                // Keep only last MAX_POINTS (FIFO)
+                if d.len() > MAX_POINTS {
                     d.pop_front();
                 }
             }
@@ -136,7 +142,7 @@ fn Graph() -> Element {
                         input {
                             r#type: "range",
                             min: "0.5",
-                            max: "10.0",
+                            max: "30.0",
                             step: "0.1",
                             value: "{frequency()}",
                             oninput: move |evt| {
@@ -149,13 +155,13 @@ fn Graph() -> Element {
                         div {
                             class: "flex justify-between text-xs text-gray-500",
                             span { "0.5 Hz" }
-                            span { "10.0 Hz" }
+                            span { "30.0 Hz" }
                         }
                     }
 
                     WaveformCanvas {
                         data: data,
-                        width: 800,
+                        width: 1000,
                         height: 400,
                         color: "#8b5cf6".to_string(),
                         x_label: "時間 (秒)".to_string(),

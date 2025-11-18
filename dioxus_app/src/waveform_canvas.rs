@@ -102,13 +102,24 @@ pub fn WaveformCanvas(props: WaveformCanvasProps) -> Element {
                 context.fill_text(&label, margin_left - 10.0, y).ok();
             }
 
+            // Calculate X-axis range from data
+            let (x_min, x_max) = if let (Some(&(min_t, _)), Some(&(max_t, _))) =
+                (data_vec.front(), data_vec.back())
+            {
+                (min_t, max_t)
+            } else {
+                (0.0, 10.0)
+            };
+            let x_range = x_max - x_min;
+
             // Draw X-axis labels (outside plot area, below)
             context.set_text_align("center");
             context.set_text_baseline("top");
             for i in 0..10 {
                 let x = margin_left + (i as f64 / 9.0) * plot_width;
                 if i % 2 == 0 {
-                    let time_label = format!("{:.1}", i as f64 * 1.0);
+                    let x_value = x_min + (i as f64 / 9.0) * x_range;
+                    let time_label = format!("{:.1}", x_value);
                     context
                         .fill_text(&time_label, x, margin_top + plot_height + 10.0)
                         .ok();
@@ -144,13 +155,10 @@ pub fn WaveformCanvas(props: WaveformCanvasProps) -> Element {
                 context.set_line_width(2.0);
                 context.begin_path();
 
-                let min_t = data_vec.front().map(|(t, _)| *t).unwrap_or(0.0);
-                let max_t = data_vec.back().map(|(t, _)| *t).unwrap_or(1.0);
-                let range_t = max_t - min_t;
-
                 for (i, (t, y)) in data_vec.iter().enumerate() {
-                    let x = if range_t > 0.0 {
-                        margin_left + ((t - min_t) / range_t) * plot_width
+                    // Map t value to canvas coordinates based on x_min and x_max
+                    let x = if x_range > 0.0 {
+                        margin_left + ((t - x_min) / x_range) * plot_width
                     } else {
                         margin_left + (i as f64 / data_vec.len() as f64) * plot_width
                     };
