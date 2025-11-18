@@ -74,27 +74,27 @@ fn Navbar() -> Element {
 
 #[component]
 fn Graph() -> Element {
-    use std::collections::VecDeque;
     use gloo_timers::future::sleep;
+    use std::collections::VecDeque;
     use std::time::Duration;
-    
+
     let mut data = use_signal(|| VecDeque::<(f64, f64)>::new());
     let mut time = use_signal(|| 0.0f64);
-    
+
     // Generate sin wave data in a background task
     use_effect(move || {
         spawn(async move {
             loop {
                 sleep(Duration::from_millis(50)).await;
-                
+
                 let t = time() + 0.1;
                 time.set(t);
-                
+
                 let y = (t * 2.0).sin();
-                
+
                 let mut d = data.write();
                 d.push_back((t, y));
-                
+
                 // Keep only last 100 points (FIFO)
                 if d.len() > 100 {
                     d.pop_front();
@@ -102,7 +102,7 @@ fn Graph() -> Element {
             }
         });
     });
-    
+
     rsx! {
         div {
             class: "fixed inset-0 pt-16 bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center overflow-hidden",
@@ -131,9 +131,9 @@ fn Graph() -> Element {
 #[component]
 fn WaveformCanvas(data: Signal<VecDeque<(f64, f64)>>) -> Element {
     use wasm_bindgen::JsCast;
-    
+
     let mut canvas_ref = use_signal(|| None::<web_sys::HtmlCanvasElement>);
-    
+
     // Render the canvas whenever data changes
     use_effect(move || {
         let data_vec = data.read();
@@ -144,65 +144,119 @@ fn WaveformCanvas(data: Signal<VecDeque<(f64, f64)>>) -> Element {
                 .unwrap()
                 .dyn_into::<web_sys::CanvasRenderingContext2d>()
                 .unwrap();
-            
+
             let width = canvas.width() as f64;
             let height = canvas.height() as f64;
             
+            // Define margins for axis labels
+            let margin_left = 60.0;
+            let margin_right = 20.0;
+            let margin_top = 20.0;
+            let margin_bottom = 50.0;
+            
+            let plot_width = width - margin_left - margin_right;
+            let plot_height = height - margin_top - margin_bottom;
+
             // Clear canvas
             context.clear_rect(0.0, 0.0, width, height);
             
-            // Draw grid
-            context.set_stroke_style(&"#e5e7eb".into());
+            // Draw plot area border
+            context.set_stroke_style_str("#d1d5db");
+            context.set_line_width(2.0);
+            context.stroke_rect(margin_left, margin_top, plot_width, plot_height);
+
+            // Draw grid inside plot area
+            context.set_stroke_style_str("#e5e7eb");
             context.set_line_width(1.0);
-            
-            // Horizontal lines
+
+            // Horizontal grid lines
             for i in 0..5 {
-                let y = (i as f64 / 4.0) * height;
+                let y = margin_top + (i as f64 / 4.0) * plot_height;
                 context.begin_path();
-                context.move_to(0.0, y);
-                context.line_to(width, y);
+                context.move_to(margin_left, y);
+                context.line_to(margin_left + plot_width, y);
                 context.stroke();
             }
-            
-            // Vertical lines
+
+            // Vertical grid lines
             for i in 0..10 {
-                let x = (i as f64 / 9.0) * width;
+                let x = margin_left + (i as f64 / 9.0) * plot_width;
                 context.begin_path();
-                context.move_to(x, 0.0);
-                context.line_to(x, height);
+                context.move_to(x, margin_top);
+                context.line_to(x, margin_top + plot_height);
                 context.stroke();
             }
+
+            // Draw Y-axis labels (outside plot area, on the left)
+            context.set_fill_style_str("#374151");
+            context.set_font("12px sans-serif");
+            context.set_text_align("right");
+            context.set_text_baseline("middle");
             
-            // Draw waveform
+            let y_labels = ["1.0", "0.5", "0.0", "-0.5", "-1.0"];
+            for (i, label) in y_labels.iter().enumerate() {
+                let y = margin_top + (i as f64 / 4.0) * plot_height;
+                context.fill_text(label, margin_left - 10.0, y).ok();
+            }
+
+            // Draw X-axis labels (outside plot area, below)
+            context.set_text_align("center");
+            context.set_text_baseline("top");
+            for i in 0..10 {
+                let x = margin_left + (i as f64 / 9.0) * plot_width;
+                if i % 2 == 0 {
+                    let time_label = format!("{:.1}", i as f64 * 1.0);
+                    context.fill_text(&time_label, x, margin_top + plot_height + 10.0).ok();
+                }
+            }
+
+            // Y-axis title (vertical text on the left)
+            context.save();
+            context.translate(15.0, height / 2.0).ok();
+            context.rotate(-std::f64::consts::PI / 2.0).ok();
+            context.set_font("14px sans-serif");
+            context.set_fill_style_str("#1f2937");
+            context.set_text_align("center");
+            context.fill_text("振幅 (Amplitude)", 0.0, 0.0).ok();
+            context.restore();
+
+            // X-axis title (horizontal text below)
+            context.set_font("14px sans-serif");
+            context.set_fill_style_str("#1f2937");
+            context.set_text_align("center");
+            context.set_text_baseline("top");
+            context.fill_text("時間 (秒)", margin_left + plot_width / 2.0, height - 15.0).ok();
+
+            // Draw waveform (inside plot area)
             if data_vec.len() > 1 {
-                context.set_stroke_style(&"#8b5cf6".into());
+                context.set_stroke_style_str("#8b5cf6");
                 context.set_line_width(2.0);
                 context.begin_path();
-                
+
                 let min_t = data_vec.front().map(|(t, _)| *t).unwrap_or(0.0);
                 let max_t = data_vec.back().map(|(t, _)| *t).unwrap_or(1.0);
                 let range_t = max_t - min_t;
-                
+
                 for (i, (t, y)) in data_vec.iter().enumerate() {
                     let x = if range_t > 0.0 {
-                        ((t - min_t) / range_t) * width
+                        margin_left + ((t - min_t) / range_t) * plot_width
                     } else {
-                        (i as f64 / data_vec.len() as f64) * width
+                        margin_left + (i as f64 / data_vec.len() as f64) * plot_width
                     };
-                    let canvas_y = height / 2.0 - (y * height / 4.0);
-                    
+                    let canvas_y = margin_top + plot_height / 2.0 - (y * plot_height / 4.0);
+
                     if i == 0 {
                         context.move_to(x, canvas_y);
                     } else {
                         context.line_to(x, canvas_y);
                     }
                 }
-                
+
                 context.stroke();
             }
         }
     });
-    
+
     rsx! {
         canvas {
             onmounted: move |event| {
