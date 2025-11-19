@@ -1,5 +1,8 @@
 [application]
 
+# Asset directory
+asset_dir = "assets"
+
 [web.app]
 
 # HTML title tag content
@@ -11,11 +14,10 @@ title = "dioxus_app"
 # Additional CSS style files
 style = []
 
-# Additional JavaScript files
-script = ["/assets/vscode-bridge.js"]
+# Additional JavaScript files (managed by asset! macro in main.rs)
+script = []
 
 [web.resource.dev]
 
-# Javascript code file
-# serve: [dev-server] only
-script = ["/assets/vscode-bridge.js"]
+# Javascript code file (managed by asset! macro in main.rs)
+script = []

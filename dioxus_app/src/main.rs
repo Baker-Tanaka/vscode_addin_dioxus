@@ -17,7 +17,7 @@ enum Route {
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
-// bridge JS is served from /assets and loaded via document::Script src
+const VSCODE_BRIDGE: Asset = asset!("/assets/vscode-bridge.js");
 
 fn main() {
     dioxus::launch(App);
@@ -29,7 +29,7 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
-        document::Script { src: "/assets/vscode-bridge.js" }
+        document::Script { src: VSCODE_BRIDGE }
         Router::<Route> {}
     }
 }
